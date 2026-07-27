@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Tracker Kanban</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        background: #111827;
+        color: #f9fafb;
+      }
+
+      .app {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      .header {
+        margin-bottom: 24px;
+      }
+
+      .header h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+      }
+
+      .header p {
+        margin: 0;
+        color: #cbd5e1;
+      }
+
+      .status-board {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(240px, 1fr));
+        gap: 16px;
+      }
+
+      .column {
+        background: #1f2937;
+        border: 1px solid #374151;
+        border-radius: 12px;
+        padding: 12px;
+        min-height: 320px;
+      }
+
+      .column-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .column-card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .task-card {
+        background: #111827;
+        border: 1px solid #374151;
+        border-radius: 10px;
+        padding: 12px;
+        cursor: grab;
+      }
+
+      .task-card.dragging {
+        opacity: 0.6;
+      }
+
+      .card-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: flex-start;
+        margin-bottom: 8px;
+      }
+
+      .card-top h3 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .priority {
+        display: inline-flex;
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .priority-high {
+        background: #7f1d1d;
+        color: #fecaca;
+      }
+
+      .priority-medium {
+        background: #78350f;
+        color: #fde68a;
+      }
+
+      .priority-low {
+        background: #14532d;
+        color: #bbf7d0;
+      }
+
+      .task-card p {
+        margin: 0 0 10px;
+        color: #cbd5e1;
+        font-size: 0.95rem;
+      }
+
+      .card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        color: #9ca3af;
+      }
+
+      .card-footer button {
+        border: 0;
+        border-radius: 6px;
+        padding: 6px 10px;
+        background: #2563eb;
+        color: white;
+        cursor: pointer;
+      }
+
+      .header-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .header-actions button {
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 14px;
+        background: #2563eb;
+        color: white;
+        cursor: pointer;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(17, 24, 39, 0.75);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .modal-backdrop.open {
+        display: flex;
+      }
+
+      .modal {
+        width: min(520px, 100%);
+        background: #111827;
+        border: 1px solid #374151;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      }
+
+      .modal h2 {
+        margin: 0 0 16px;
+      }
+
+      .modal form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .modal label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.95rem;
+      }
+
+      .modal input,
+      .modal textarea,
+      .modal select {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #374151;
+        background: #1f2937;
+        color: white;
+        box-sizing: border-box;
+      }
+
+      .form-error {
+        color: #fca5a5;
+        font-size: 0.9rem;
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 4px;
+      }
+
+      .modal-actions button {
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+
+      .modal-actions .secondary {
+        background: #374151;
+        color: white;
+      }
+
+      .modal-actions .primary {
+        background: #2563eb;
+        color: white;
+      }
+
+      .sr-only {
+        position: absolute;
+        left: -9999px;
+      }
+
+      @media (max-width: 900px) {
+        .status-board {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="header-actions">
+          <h1>Task Tracker Kanban</h1>
+          <button id="new-task-btn" type="button">New Task</button>
+        </div>
+        <p>Plan, track, and move work through the three stages of delivery.</p>
+      </header>
+
+      <main id="board" class="status-board"></main>
+    </div>
+
+    <div id="modal-backdrop" class="modal-backdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <h2 id="modal-title">New Task</h2>
+        <form id="task-form">
+          <input id="task-id" name="taskId" type="hidden" />
+
+          <label for="task-title">
+            Title
+            <input id="task-title" name="title" type="text" />
+          </label>
+
+          <label for="task-description">
+            Description
+            <textarea id="task-description" name="description" rows="4"></textarea>
+          </label>
+
+          <label for="task-status">
+            Status
+            <select id="task-status" name="status">
+              <option value="ToDo">ToDo</option>
+              <option value="InProgress">InProgress</option>
+              <option value="Done">Done</option>
+            </select>
+          </label>
+
+          <label for="task-priority">
+            Priority
+            <select id="task-priority" name="priority">
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </label>
+
+          <label for="task-assignee">
+            Assignee
+            <input id="task-assignee" name="assignee" type="text" />
+          </label>
+
+          <div id="form-error" class="form-error" aria-live="polite"></div>
+
+          <div class="modal-actions">
+            <button id="cancel-btn" class="secondary" type="button">Cancel</button>
+            <button class="primary" type="submit">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const board = document.getElementById("board");
+      const modalBackdrop = document.getElementById("modal-backdrop");
+      const modalTitle = document.getElementById("modal-title");
+      const taskForm = document.getElementById("task-form");
+      const taskIdInput = document.getElementById("task-id");
+      const titleInput = document.getElementById("task-title");
+      const descriptionInput = document.getElementById("task-description");
+      const statusInput = document.getElementById("task-status");
+      const priorityInput = document.getElementById("task-priority");
+      const assigneeInput = document.getElementById("task-assignee");
+      const formError = document.getElementById("form-error");
+      const newTaskBtn = document.getElementById("new-task-btn");
+      const cancelBtn = document.getElementById("cancel-btn");
+      const columns = [
+        { status: "ToDo", label: "To Do" },
+        { status: "InProgress", label: "In Progress" },
+        { status: "Done", label: "Done" },
+      ];
+      const priorityOrder = { High: 0, Medium: 1, Low: 2 };
+      const tasks = [];
+      let currentState = "loading";
+      let errorMessage = "";
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function openModal(task = null) {
+        formError.textContent = "";
+        taskForm.reset();
+        taskIdInput.value = "";
+        statusInput.value = "ToDo";
+        priorityInput.value = "Medium";
+
+        if (task) {
+          modalTitle.textContent = "Edit Task";
+          taskIdInput.value = task.id;
+          titleInput.value = task.title || "";
+          descriptionInput.value = task.description || "";
+          statusInput.value = task.status || "ToDo";
+          priorityInput.value = task.priority || "Medium";
+          assigneeInput.value = task.assignee || "";
+        } else {
+          modalTitle.textContent = "New Task";
+        }
+
+        modalBackdrop.classList.add("open");
+        modalBackdrop.setAttribute("aria-hidden", "false");
+        titleInput.focus();
+      }
+
+      function closeModal() {
+        modalBackdrop.classList.remove("open");
+        modalBackdrop.setAttribute("aria-hidden", "true");
+        formError.textContent = "";
+        taskForm.reset();
+        taskIdInput.value = "";
+        statusInput.value = "ToDo";
+        priorityInput.value = "Medium";
+      }
+
+      function renderBoard(taskList) {
+        const groupedTasks = columns.map((column) => {
+          const filtered = taskList
+            .filter((task) => task.status === column.status)
+            .sort((a, b) => {
+              const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+              if (priorityDiff !== 0) {
+                return priorityDiff;
+              }
+              return a.id.localeCompare(b.id);
+            });
+
+          return {
+            ...column,
+            tasks: filtered,
+          };
+        });
+
+        if (currentState === "loading") {
+          board.innerHTML = `
+            <section class="column" data-status="loading">
+              <div class="column-header">
+                <strong>Loading</strong>
+                <span>…</span>
+              </div>
+              <div class="column-card-list">
+                <div class="task-card"><p>Loading tasks…</p></div>
+              </div>
+            </section>
+          `;
+          return;
+        }
+
+        if (currentState === "error") {
+          board.innerHTML = `
+            <section class="column" data-status="error" style="grid-column: 1 / -1;">
+              <div class="column-header">
+                <strong>Error</strong>
+                <span>!</span>
+              </div>
+              <div class="column-card-list">
+                <div class="task-card">
+                  <p>${escapeHtml(errorMessage)}</p>
+                  <div class="card-footer">
+                    <span>Unable to load tasks</span>
+                    <button type="button" onclick="fetchTasks()">Retry</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          `;
+          return;
+        }
+
+        board.innerHTML = groupedTasks
+          .map((column) => {
+            const cardsMarkup = column.tasks
+              .map((task) => {
+                return `
+                  <article
+                    class="task-card"
+                    data-task-id="${escapeHtml(task.id)}"
+                    draggable="true"
+                    data-status="${escapeHtml(column.status)}"
+                  >
+                    <div class="card-top">
+                      <h3>${escapeHtml(task.title)}</h3>
+                      <span class="priority priority-${String(task.priority).toLowerCase()}">${escapeHtml(task.priority)}</span>
+                    </div>
+                    <p>${escapeHtml(task.description || "")}</p>
+                    <div class="card-footer">
+                      <span>${escapeHtml(task.assignee || "Unassigned")}</span>
+                      <button type="button" data-action="edit" data-task-id="${escapeHtml(task.id)}">Edit</button>
+                    </div>
+                  </article>
+                `;
+              })
+              .join("");
+
+            const emptyMessage = column.tasks.length === 0
+              ? '<div class="task-card"><p>No tasks in this column yet.</p></div>'
+              : "";
+
+            return `
+              <section class="column" data-status="${column.status}">
+                <div class="column-header">
+                  <strong>${escapeHtml(column.label)}</strong>
+                  <span>${column.tasks.length}</span>
+                </div>
+                <div class="column-card-list">
+                  ${cardsMarkup}
+                  ${emptyMessage}
+                </div>
+              </section>
+            `;
+          })
+          .join("");
+
+        board.querySelectorAll(".task-card").forEach((card) => {
+          card.addEventListener("dragstart", handleDragStart);
+          card.addEventListener("dragend", handleDragEnd);
+        });
+
+        board.querySelectorAll("[data-action='edit']").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const task = tasks.find((item) => item.id === button.dataset.taskId);
+            if (task) {
+              openModal(task);
+            }
+          });
+        });
+
+        board.querySelectorAll(".column").forEach((column) => {
+          column.addEventListener("dragover", (event) => event.preventDefault());
+          column.addEventListener("drop", handleDrop);
+        });
+      }
+
+      let draggedTaskId = null;
+      let draggedTaskPreviousStatus = null;
+
+      function handleDragStart(event) {
+        const taskCard = event.currentTarget;
+        draggedTaskId = taskCard.dataset.taskId;
+        draggedTaskPreviousStatus = taskCard.dataset.status;
+        taskCard.classList.add("dragging");
+      }
+
+      function handleDragEnd(event) {
+        event.currentTarget.classList.remove("dragging");
+      }
+
+      async function handleDrop(event) {
+        event.preventDefault();
+        const targetColumn = event.currentTarget;
+        const targetStatus = targetColumn.dataset.status;
+
+        if (!draggedTaskId || !targetStatus || targetStatus === draggedTaskPreviousStatus) {
+          draggedTaskId = null;
+          draggedTaskPreviousStatus = null;
+          return;
+        }
+
+        const taskIndex = tasks.findIndex((task) => task.id === draggedTaskId);
+        if (taskIndex === -1) {
+          draggedTaskId = null;
+          draggedTaskPreviousStatus = null;
+          return;
+        }
+
+        const previousTask = { ...tasks[taskIndex] };
+        tasks[taskIndex] = { ...tasks[taskIndex], status: targetStatus };
+        currentState = tasks.length === 0 ? "empty" : "ready";
+        renderBoard(tasks);
+
+        try {
+          const response = await fetch(`http://localhost:8002/tasks/${draggedTaskId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: targetStatus }),
+          });
+
+          if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({}));
+            const detail = errorBody.detail || "Unable to update task";
+            tasks[taskIndex] = previousTask;
+            currentState = "error";
+            errorMessage = detail;
+            renderBoard(tasks);
+            return;
+          }
+
+          draggedTaskId = null;
+          draggedTaskPreviousStatus = null;
+        } catch (error) {
+          tasks[taskIndex] = previousTask;
+          currentState = "error";
+          errorMessage = "Unable to reach the server. Please try again.";
+          renderBoard(tasks);
+        }
+      }
+
+      async function submitTask(event) {
+        event.preventDefault();
+        const title = titleInput.value.trim();
+        if (!title) {
+          formError.textContent = "Title is required";
+          return;
+        }
+
+        const payload = {
+          title,
+          description: descriptionInput.value.trim(),
+          status: statusInput.value,
+          priority: priorityInput.value,
+          assignee: assigneeInput.value.trim() || null,
+        };
+
+        const taskId = taskIdInput.value;
+        const url = taskId ? `http://localhost:8002/tasks/${taskId}` : "http://localhost:8002/tasks";
+        const method = taskId ? "PATCH" : "POST";
+
+        try {
+          const response = await fetch(url, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({}));
+            const serverMessage = errorBody.detail || "Unable to save task";
+            formError.textContent = Array.isArray(serverMessage)
+              ? serverMessage.map((item) => item.msg).join("; ")
+              : serverMessage;
+            return;
+          }
+
+          closeModal();
+          await fetchTasks();
+        } catch (error) {
+          formError.textContent = "Unable to reach the server. Please try again.";
+        }
+      }
+
+      async function fetchTasks() {
+        currentState = "loading";
+        errorMessage = "";
+        renderBoard(tasks);
+
+        try {
+          const response = await fetch("http://localhost:8002/tasks");
+          if (!response.ok) {
+            throw new Error("Unable to load tasks");
+          }
+
+          const data = await response.json();
+          tasks.splice(0, tasks.length, ...data);
+          currentState = tasks.length === 0 ? "empty" : "ready";
+          renderBoard(tasks);
+        } catch (error) {
+          console.error(error);
+          currentState = "error";
+          errorMessage = error.message;
+          renderBoard(tasks);
+        }
+      }
+
+      newTaskBtn.addEventListener("click", () => openModal());
+      cancelBtn.addEventListener("click", closeModal);
+      modalBackdrop.addEventListener("click", (event) => {
+        if (event.target === modalBackdrop) {
+          closeModal();
+        }
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && modalBackdrop.classList.contains("open")) {
+          closeModal();
+        }
+      });
+      taskForm.addEventListener("submit", submitTask);
+
+      fetchTasks();
+    </script>
+  </body>
+</html>
