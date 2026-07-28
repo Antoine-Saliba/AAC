@@ -129,3 +129,45 @@ Frontend files
 Notifications or real-time updates
 
 routes.py and models.py exist as the seams these features will grow into, keeping the structure aligned with ADR-001 from the start.
+
+
+
+## Running the app
+
+### Backend
+
+From `backend/`, with the virtual environment active:
+
+```bash
+python -m app.main
+```
+
+The server starts at http://127.0.0.1:8000 (change `PORT` in `.env` to use a
+different port). Interactive API docs are at http://127.0.0.1:8000/docs.
+
+### Frontend
+
+The frontend is a single static file at `frontend/index.html`. With the backend
+running, open it one of two ways:
+
+- The backend serves it directly at http://127.0.0.1:8000/ — just open that URL.
+- Or open `frontend/index.html` in your browser directly (double-click, or
+  `open frontend/index.html` on macOS / `start frontend/index.html` on Windows).
+
+The page talks to the backend at `http://127.0.0.1:8000`, so the backend must be
+running first. Create a task, then click **Edit** on a card to add due dates and
+comments.
+
+### Running tests
+
+From `backend/`, with the virtual environment active:
+
+```bash
+pytest
+```
+
+To see per-test output and which cases ran:
+
+```bash
+pytest -v
+```

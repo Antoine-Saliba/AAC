@@ -59,7 +59,11 @@ def health() -> HealthResponse:
         status="ok",
         timestamp=datetime.now(timezone.utc).isoformat(),
     )
-
+def _require_task(task_id: str) -> TaskResponse:
+    task = storage.get_task_by_id(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
+    return task
 
 @app.get("/tasks", response_model=list[TaskResponse], tags=["tasks"])
 def list_tasks(
@@ -72,13 +76,7 @@ def list_tasks(
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
 def get_task(task_id: str) -> TaskResponse:
-    task = storage.get_task_by_id(task_id)
-    if task is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Task with id {task_id} not found",
-        )
-    return task
+    return _require_task(task_id)
 
 
 @app.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED, tags=["tasks"])
@@ -89,12 +87,7 @@ def create_task(payload: TaskCreate) -> TaskResponse:
 @app.patch("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
 def update_task(task_id: str, payload: TaskUpdate) -> TaskResponse:
     if payload.status is not None:
-        existing = storage.get_task_by_id(task_id)
-        if existing is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Task with id {task_id} not found",
-            )
+        existing = _require_task(task_id)
         validate_status_transition(existing.status, payload.status)
 
     task = storage.update_task(task_id, payload)
@@ -114,11 +107,7 @@ def delete_task(task_id: str) -> None:
             detail=f"Task with id {task_id} not found",
         )
 
-def _require_task(task_id: str) -> TaskResponse:
-    task = storage.get_task_by_id(task_id)
-    if task is None:
-        raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
-    return task
+
 
 
 @app.get(
