@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse
 
 from app import storage
 from app.business_rules import validate_status_transition
-from app.models import TaskCreate, TaskPriority, TaskResponse, TaskStatus, TaskUpdate
+from app.models import Comment, CommentCreate, TaskCreate, TaskPriority, TaskResponse, TaskStatus, TaskUpdate
 from app.schemas import HealthResponse
  
 # Load environment variables from a local .env file if one is present.
@@ -65,8 +65,9 @@ def health() -> HealthResponse:
 def list_tasks(
     status: TaskStatus | None = None,
     priority: TaskPriority | None = None,
+    overdue: bool | None = None,
 ) -> list[TaskResponse]:
-    return storage.get_all_tasks(status=status, priority=priority)
+    return storage.get_all_tasks(status=status, priority=priority, overdue=overdue)
 
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
@@ -113,6 +114,48 @@ def delete_task(task_id: str) -> None:
             detail=f"Task with id {task_id} not found",
         )
 
+def _require_task(task_id: str) -> TaskResponse:
+    task = storage.get_task_by_id(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
+    return task
+
+
+@app.get(
+    "/tasks/{task_id}/comments",
+    response_model=list[Comment],
+    tags=["comments"],
+)
+def list_comments(task_id: str) -> list[Comment]:
+    _require_task(task_id)
+    return storage.get_comments_for_task(task_id)
+
+
+@app.post(
+    "/tasks/{task_id}/comments",
+    response_model=Comment,
+    status_code=status.HTTP_201_CREATED,
+    tags=["comments"],
+)
+def create_comment(task_id: str, payload: CommentCreate) -> Comment:
+    _require_task(task_id)
+    return storage.add_comment(task_id, payload)
+
+
+@app.delete(
+    "/tasks/{task_id}/comments/{comment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["comments"],
+)
+def delete_comment(task_id: str, comment_id: str) -> None:
+    _require_task(task_id)
+    comment = storage.get_comment_by_id(comment_id)
+    if comment is None or comment.task_id != task_id:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Comment with id {comment_id} not found",
+        )
+    storage.delete_comment(comment_id)
 
 if __name__ == "__main__":
     import uvicorn
