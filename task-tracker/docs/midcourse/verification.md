@@ -132,6 +132,31 @@ FAILED tests/test_tasks.py::test_due_date_on_past_non_done_task_is_overdue_and_d
 =========================================== 1 failed, 41 deselected, 1 warning in 0.29s ===========================================
 
 
+**Restoration:** I uncommented the guard in `is_task_overdue` in `app/models.py`,
+restoring:
+
+    if getattr(task, "status", None) == TaskStatus.DONE:
+        return False
+
+**Result (restored code):**
+
+PS C:\Users\Dev041\AAC\task-tracker\backend> python -m pytest -v -k test_due_date_on_past_non_done_task_is_overdue_and_done_task_is_not
+======================================================================================================== test session starts ========================================================================================================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\Dev041\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Dev041\AAC\task-tracker\backend
+plugins: anyio-4.14.2
+collected 42 items / 41 deselected / 1 selected                                                                                                                                                                                      
+
+tests/test_tasks.py::test_due_date_on_past_non_done_task_is_overdue_and_done_task_is_not PASSED                                                                                                                                [100%]
+
+========================================================================================================= warnings summary ==========================================================================================================
+..\..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\Dev041\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================================================================================ 1 passed, 41 deselected, 1 warning in 0.04s ============================================================================================
 
 
 ## Break 2 — Comment ownership check removed
@@ -188,6 +213,37 @@ tests\test_tasks.py:395: AssertionError
 ===================================================== short test summary info =====================================================
 FAILED tests/test_tasks.py::test_delete_comment_via_wrong_task_returns_404 - assert 204 == 404
 ================================================== 1 failed, 1 warning in 0.37s ===================================================
+
+
+
+**Restoration:** I restored the ownership check in `delete_comment` in
+`app/main.py`, changing `if comment is None:` back to
+`if comment is None or comment.task_id != task_id:`.
+
+**Result (restored code):**
+
+PS C:\Users\Dev041\AAC\task-tracker\backend> python -m pytest -v tests/test_tasks.py::test_delete_comment_via_wrong_task_returns_404   
+======================================================================================================== test session starts ========================================================================================================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\Dev041\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Dev041\AAC\task-tracker\backend
+plugins: anyio-4.14.2
+collected 1 item                                                                                                                                                                                                                     
+
+tests/test_tasks.py::test_delete_comment_via_wrong_task_returns_404 PASSED                                                                                                                                                     [100%]
+
+========================================================================================================= warnings summary ==========================================================================================================
+..\..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\Dev041\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================================================================================================== 1 passed, 1 warning in 0.05s ====================================================================================================
+
+
+
+
+
 
 
 ## Behavior Contract — Before / After Refactor
