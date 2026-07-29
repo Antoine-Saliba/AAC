@@ -1,10 +1,12 @@
-Weak prompt
+# Due-Date and Overdue Feature
+
+# Weak prompt
 
 add due dates to my task app. let users set a due date and show if something is overdue. add a filter too.
 
-Enhanced Prompt:
+# Enhanced Prompt:
 
-Prompt 1 — Due date field, validation, and computed overdue
+# Prompt 1 — Due date field, validation, and computed overdue
 
 You are a senior Python backend engineer. Modify my existing FastAPI models to add an optional due date and a computed overdue flag.
 
@@ -36,7 +38,7 @@ DO NOT modify any route.
 
 Output only the changed model class(es) in one code block.
 
-Prompt 2 — Overdue query filter on GET /tasks
+# Prompt 2 — Overdue query filter on GET /tasks
 
 You are a senior Python backend engineer. Modify ONE existing route in my FastAPI app.
 
@@ -72,10 +74,7 @@ Output only the imports to add and the updated route function in one code block.
 
 
 
-
-
-
-Prompt 3:
+# Prompt 3:
 You are a senior Python backend engineer. Modify ONE existing route in my FastAPI app.
 
 Context files: @app/main.py @app/models.py @app/storage.py
@@ -111,11 +110,6 @@ Output only the imports to add and the updated route function in one code block.
 
 
 # Due-Date and Overdue Feature
-
-I built the due-date/overdue feature across three focused prompts, each scoped to
-a distinct slice: the model plus computed flag (Prompt 1), the list-filter
-(Prompt 2), and the update/clear path (Prompt 3). Below is what the AI returned
-for each and what I accepted, edited, or rejected.
 
 ## Prompt 1 — Due-date field, validation, and computed `overdue`
 
@@ -286,3 +280,62 @@ DO NOT:
 - DO NOT modify any existing task route.
 
 Output only the imports to add and the new route function in one code block.
+
+
+
+
+#  Task Comments
+
+## Prompt 1 — POST /tasks/{task_id}/comments
+
+**What the AI returned.** A single `201` route tagged `["comments"]` that takes a
+`CommentCreate` body, `404`s when the parent task is missing, and otherwise
+returns `storage.add_comment(task_id, payload)` as a `Comment`. Non-blank text
+validation was left to the model rather than repeated in the route.
+
+**Accepted.** The route shape, the `201` status, and pushing text validation and
+`extra="forbid"` down into `CommentCreate` so the endpoint stays thin. Delegating
+`id`/`created_at` rejection to the model matched the server-assigns-fields
+decision.
+
+**Edited.** I confirmed the `404` message format was consistent with the existing
+task routes' error strings so clients see one convention across the API.
+
+**Rejected.** An early draft re-stripped and re-checked the text inside the route.
+I removed it — double validation invites the two checks drifting apart, and the
+model is the single source of truth for non-blank enforcement.
+
+## Prompt 2 — GET /tasks/{task_id}/comments
+
+**What the AI returned.** A `200` list route returning `list[Comment]`, `404`ing
+on a missing parent task, and otherwise returning
+`storage.get_comments_for_task(task_id)`. A task with no comments returned `200`
+with `[]`, and ordering by `created_at` ascending was handled in storage.
+
+**Accepted.** The empty-list-is-`200`-not-`404` behavior (an existing task with
+zero comments is a valid state, not an error) and keeping sort/filter logic in
+storage rather than the route.
+
+**Edited.** Nothing material — I verified the sort lived in
+`get_comments_for_task` so the route stayed a pass-through, consistent with how
+the task-list route delegates ordering.
+
+**Rejected.** A version that sorted in the route. I moved ordering back to storage
+so the route has no data logic and both list endpoints follow the same pattern.
+
+## Prompt 3 — DELETE /tasks/{task_id}/comments/{comment_id}
+
+**What the AI returned.** A `204` route with no response body, `404`ing when the
+parent task is missing, then fetching the comment and `404`ing if it's missing or
+if its `task_id` doesn't match the path — only then calling
+`storage.delete_comment(comment_id)`.
+
+**Accepted.** The `204`-no-content contract and the two-step existence check.
+
+**Edited.** I made sure the mismatch case (`comment.task_id != task_id`) was
+enforced exactly as written — this is the security-relevant guard.
+
+**Rejected.** A simpler version that deleted by `comment_id` alone without
+checking the comment actually belonged to the task in the path. I rejected it
+because it would let a caller delete any comment through an unrelated task's URL;
+the `task_id` mismatch must `404`.
