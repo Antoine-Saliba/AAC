@@ -72,46 +72,46 @@
 - A task without a due date is never marked overdue.
 - An overdue task displays a clear visual indicator (overdue pill) on its card.
 
-# Feature 2 (Tags / labels)
+# Feature 2 (Task Comments)
 
-## Tags / Labels — User Stories
+## Task Comments — User Stories
 
-**Story:** As a team member, I want to add tags to a task so that I can categorize and group related work.
-
-*Acceptance Criteria:*
-- Tags are entered as a list or comma-separated field and normalized (trimmed, deduplicated).
-- Each tag value must be non-empty after trimming; whitespace-only tags are discarded.
-- Created tags appear as chips on the task card.
-- Tags persist and are returned with the task record.
-
-**Story:** As a team member, I want empty or invalid tags rejected so that tag data stays clean.
+**Story:** As a team member, I want to add a comment to a task so that I can record notes, questions, or updates against the work.
 
 *Acceptance Criteria:*
-- Submitting a tag that is empty or whitespace-only returns HTTP 422.
-- A tag exceeding the maximum length returns HTTP 422 with the offending value identified.
-- Exceeding the maximum tag count per task returns HTTP 422.
-- No task is created or updated when validation fails.
+- A comment is submitted with a text field on the task's comment endpoint.
+- Comment text is trimmed before it is stored.
+- A successful add returns HTTP 201 with the created comment (id, task_id, text, created_at).
+- The comment's id and created_at are assigned by the server, not the client.
+- New comments appear in the task's comment list after they are added.
 
-**Story:** As a team member, I want to update the tags on an existing task so that I can re-categorize it as work evolves.
-
-*Acceptance Criteria:*
-- Submitting a new tag list replaces the previous set after normalization.
-- Removing all tags is allowed and leaves the task with zero tags.
-- Duplicate tags in the submission are collapsed to a single value.
-- The updated tag chips render on the card immediately after save.
-
-**Story:** As a team member, I want to filter tasks by tag so that I can focus on one category at a time.
+**Story:** As a team member, I want blank comments rejected so that comment data stays meaningful.
 
 *Acceptance Criteria:*
-- Selecting a tag shows only tasks containing that tag.
-- Selecting multiple tags returns tasks matching all selected tags.
-- Clearing the filter restores the full task list.
-- A tag with no matching tasks returns an empty result, not an error.
+- Submitting empty or whitespace-only text returns HTTP 422 with the text field identified.
+- A comment exceeding the maximum length returns HTTP 422 with the offending field identified.
+- No comment is created when validation fails.
+- Sending server-assigned fields (id or created_at) in the body is rejected.
 
-**Story:** As a team member, I want my tags preserved when I update unrelated task fields so that categorization isn't lost.
+**Story:** As a team member, I want to list the comments on a task so that I can read its full history.
 
 *Acceptance Criteria:*
-- Updating title, description, status, priority, or assignee leaves existing tags unchanged.
-- Tags are only modified when the tag field is explicitly included in the request.
-- Omitting the tag field from an update request does not clear existing tags.
-- Tag chips remain rendered on the card after an unrelated update.
+- Requesting a task's comments returns them in chronological order (oldest first).
+- A task with no comments returns an empty list, not an error.
+- Requesting comments for a task that does not exist returns HTTP 404.
+- Each returned comment includes its id, text, and created_at.
+
+**Story:** As a team member, I want to delete a comment so that I can remove notes that are no longer relevant.
+
+*Acceptance Criteria:*
+- Deleting an existing comment removes only that comment and returns a success status.
+- Deleting a comment that does not exist returns HTTP 404.
+- Deleting a comment through a task it does not belong to returns HTTP 404.
+- Other comments on the same task are unaffected by the deletion.
+
+**Story:** As a team member, I want a task's comments removed when the task itself is deleted so that no orphaned comments remain.
+
+*Acceptance Criteria:*
+- Deleting a task also removes all comments attached to that task.
+- No deleted task's comments remain retrievable afterward.
+- Deleting a task does not affect comments belonging to other tasks
