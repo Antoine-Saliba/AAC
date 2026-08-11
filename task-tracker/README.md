@@ -1,64 +1,38 @@
 # Task Tracker
 
-A learning-project REST API for tracking tasks, built with Python, FastAPI, and Pydantic, with a single-page Kanban frontend.
+A learning-project REST API for tracking tasks, built with Python, FastAPI, and Pydantic, with a single-file Kanban frontend. This build adds a CI pipeline and a Docker image on top of the mid-course feature set (task CRUD, due dates/overdue, and task comments). [VERIFY: this repo doesn't label itself "Module 4" anywhere explicitly — inferred from the added CI/Docker tooling.]
 
-Task data is held in an in-memory store during the server's lifetime. The persistence approach and its reasoning are recorded in ADR-001: Use JSON File Storage for Task Persistence.
+Task and comment data live in an in-memory Python dict for the server's lifetime — **nothing is persisted to disk or a database**. The FastAPI app description currently says persistence is "backed by a local JSON file," but that's stale/aspirational text left over from an earlier plan; the actual behavior and reasoning are recorded in [`docs/midcourse/mini-adr.md`](docs/midcourse/mini-adr.md).
 
-This repository contains the mid-course project: full task CRUD plus two added features — optional **due dates with a server-computed overdue flag**, and **task comments** (list, add, delete).
+## 1. Project overview
 
-## Project structure
+- **Backend**: FastAPI + Pydantic REST API for tasks and per-task comments (`task-tracker/backend/`).
+- **Frontend**: a single static HTML file with no build step, talking to the backend at a hardcoded `http://127.0.0.1:8000` (`task-tracker/frontend/index.html`).
+- **Features**: task CRUD; optional `due_date` with a server-computed, read-only `overdue` flag; status-transition rules (forward-only moves); per-task comments (list/add/delete).
+- **Scope**: this is a learning project. It does **not** implement authentication, a database, or any deployment/production configuration — see [Section 9](#9-project-conventions-and-current-limitations).
 
-```text
-task-tracker/
-│
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py          # FastAPI app + task, comment, and health routes
-│   │   ├── models.py        # Task/Comment models, enums, overdue helper
-│   │   ├── schemas.py       # Health-check response schema
-│   │   ├── storage.py       # In-memory task and comment store
-│   │   └── routes.py        # Task router seam
-│   │
-│   ├── tests/               # pytest suite (task, due-date, comment coverage)
-│   ├── .env.example
-│   └── requirements.txt
-│
-├── frontend/
-│   └── index.html           # Single-file Kanban board (talks to the backend)
-│
-├── docs/
-│   └── midcourse/           # User stories, decision note, prompt log
-│
-├── .gitignore
-└── README.md
-```
+## 2. Prerequisites
 
-## Requirements
+- **Python 3.10+** — the codebase uses `X | None` union-type syntax (PEP 604), which requires 3.10 or newer. [VERIFY: CI itself pins exactly Python 3.11 — that's the only version actually tested automatically.]
+- **pip** (comes with Python).
+- **Docker** — only needed if you want to build/run the container (Section 6).
 
-Python 3.10 or newer (the type hints use the `list[dict]` / `X | None` syntax from 3.10+).
-
-Check your version:
+Check your Python version:
 
 ```bash
 python --version
 ```
 
-## Setup
+## 3. Local setup
 
-All commands below are run from the `backend/` directory.
+Run from the repo root (the directory containing `task-tracker/`).
 
 ```bash
 cd task-tracker/backend
-```
-
-**1. Create a virtual environment**
-
-```bash
 python -m venv venv
 ```
 
-**2. Activate it**
+Activate the virtual environment:
 
 macOS / Linux:
 
@@ -72,69 +46,36 @@ Windows (PowerShell):
 venv\Scripts\Activate.ps1
 ```
 
-Your shell prompt should now be prefixed with `(venv)`.
-
-**3. Install dependencies**
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-**4. Create your local `.env`**
+Create your local `.env` (git-ignored; `.env.example` is the committed reference):
 
 ```bash
 cp .env.example .env
 ```
 
-On Windows use `copy .env.example .env`. The `.env` file is git-ignored; `.env.example` is the committed reference.
+On Windows use `copy .env.example .env` instead of `cp`.
 
-## Running the backend
+## 4. Run the app locally
 
-From `backend/`, with the virtual environment active:
+From `task-tracker/backend`, with the virtual environment active:
 
 ```bash
-python -m app.main
+uvicorn app.main:app --reload --port 8000
 ```
 
-This loads `APP_ENV` and `PORT` from `.env` (via python-dotenv) and starts uvicorn with reload enabled. With the default `.env`, the server starts at http://127.0.0.1:8000. Change `PORT` in `.env` to use a different port.
+This starts the server at http://127.0.0.1:8000 with auto-reload enabled.
 
 Interactive API docs are generated automatically:
 
 - Swagger UI — http://127.0.0.1:8000/docs
 - ReDoc — http://127.0.0.1:8000/redoc
 
-## Opening the frontend
-
-The frontend is a single static file at `frontend/index.html`. With the backend running, open it either way:
-
-- The backend serves it directly at http://127.0.0.1:8000/ — just open that URL.
-- Or open `frontend/index.html` in your browser directly (double-click, or `start frontend/index.html` on Windows / `open frontend/index.html` on macOS).
-
-The page talks to the backend at `http://127.0.0.1:8000`, so the backend must be running first. Create a task, then click **Edit** on a card to set a due date or add comments. Use the **Show overdue only** toggle to filter the board.
-
-## Running tests
-
-From `backend/`, with the virtual environment active:
-
-```bash
-pytest
-```
-
-For per-test output:
-
-```bash
-pytest -v
-```
-
-The suite covers task CRUD, due-date validation and overdue computation, and the comment endpoints (add, blank-rejection, list, delete, and 404 handling).
-
-## Features
-
-**Due dates & overdue.** Tasks accept an optional ISO 8601 `due_date`, normalized to UTC. `overdue` is computed on the backend as a read-only field — true when the due date is in the past and the task isn't `Done` — and the same logic backs the `?overdue=true|false` list filter.
-
-**Task comments.** Each task has comments with list, add, and delete endpoints. Blank text is rejected with a `422`; missing tasks or comments return `404`; deleting a task cascades to remove its comments.
-
-## Health check
+Health check:
 
 ```bash
 curl http://127.0.0.1:8000/health
@@ -148,3 +89,109 @@ Expected response, HTTP 200:
   "timestamp": "2026-07-23T10:15:30.123456+00:00"
 }
 ```
+
+**Frontend**: with the backend running, either open http://127.0.0.1:8000/ (served directly by the backend) or open `task-tracker/frontend/index.html` in a browser directly. The page talks to the backend at `http://127.0.0.1:8000`, so the backend must already be running.
+
+[VERIFY] `python -m app.main` (run from the same directory) is an alternative entry point already present in `app/main.py` — it reads `APP_ENV`/`PORT` from `.env` and also starts uvicorn with reload. Both commands behave the same by default since `.env.example` sets `PORT=8000`.
+
+## 5. Run tests
+
+From `task-tracker/backend`, with the virtual environment active:
+
+```bash
+pytest -v
+```
+
+For a single test:
+
+```bash
+pytest tests/test_tasks.py::test_name -v
+```
+
+The suite (42 tests as of this writing) covers task CRUD, title/due-date validation, overdue computation, status-transition rules, comment endpoints (add, blank-rejection, list, delete, 404 handling), and a CORS preflight check.
+
+## 6. Run with Docker
+
+Run from the repo root.
+
+```bash
+cd task-tracker
+docker build -t task-tracker-api .
+docker run --rm -p 8000:8000 task-tracker-api
+```
+
+The server is then reachable the same way as local runs:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Notes on the image (from `task-tracker/Dockerfile`):
+
+- Multi-stage build: dependencies are installed in a `builder` stage, then only the installed packages, `backend/app`, and `frontend` are copied into the `runtime` stage — no `requirements.txt`, tests, docs, or `.env` end up in the final image.
+- Runs as a non-root user (`app`, uid 1000).
+- The container's `CMD` starts uvicorn directly on `0.0.0.0:8000` with no `--reload`; it does **not** go through `app.main`'s `__main__` block, so [VERIFY] the `PORT` value from `.env` has no effect inside the container — `.env` isn't copied into the image at all, and the port is hardcoded to `8000` in the Dockerfile.
+
+## 7. CI workflow summary
+
+Defined in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), job `test`:
+
+- **Triggers**: every `push` and every `pull_request` (no branch filter).
+- **Runner**: `ubuntu-latest`, working directory `task-tracker/backend`.
+- **Steps**: checkout → set up Python 3.11 → `pip install -r requirements.txt` → `pytest -v`.
+
+The workflow only runs the test suite — it does not build/push the Docker image, run linting, or deploy anywhere.
+
+## 8. Project structure
+
+```text
+task-tracker/
+│
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py            # FastAPI app + task, comment, and health routes
+│   │   ├── models.py          # Task/Comment models, enums, overdue helper
+│   │   ├── business_rules.py  # Status-transition allow-list
+│   │   ├── schemas.py         # Health-check response schema
+│   │   ├── storage.py         # In-memory task and comment store
+│   │   └── routes.py          # Unused/vestigial empty APIRouter (not imported by main.py)
+│   │
+│   ├── tests/                 # pytest suite (task, due-date, comment, CORS coverage)
+│   ├── .env.example
+│   ├── pytest.ini
+│   └── requirements.txt
+│
+├── frontend/
+│   └── index.html              # Single-file Kanban board (talks to the backend)
+│
+├── docs/
+│   └── midcourse/               # User stories, decision note, prompt log, reflection
+│
+├── Dockerfile
+├── .dockerignore
+├── .gitignore
+└── README.md
+
+.github/
+└── workflows/
+    └── ci.yml                   # Test-only CI pipeline (see Section 7)
+```
+
+## 9. Project conventions and current limitations
+
+- **In-memory only, nothing persisted.** All task/comment data lives in module-level dicts in `app/storage.py` for the life of the process; a restart clears everything. The FastAPI app's `description` field still mentions JSON file storage — that's stale text, not actual behavior (see [`docs/midcourse/mini-adr.md`](docs/midcourse/mini-adr.md)).
+- **Comments do not cascade-delete with their task.** Comments are a separate top-level store keyed by `task_id`, not nested under tasks. Deleting a task (`storage.delete_task`) only removes the task itself — comments referencing that task are left behind (orphaned). Earlier project docs describe cascade delete as intended behavior; that has not been implemented.
+- **Status transitions are an explicit allow-list, not a general state machine.** Only forward moves and same-status no-ops are permitted (`app/business_rules.py`); e.g. `ToDo -> Done` directly is rejected with `422`.
+- **`app/routes.py` is unused.** It defines an empty `APIRouter` left over from an earlier stage of the project; it is never imported or included by `app/main.py`.
+- **CORS is wide open** (`allow_origins=["*"]`, all methods/headers) — fine for local development, not appropriate as-is for any public deployment.
+- **Single-process, in-memory state.** The task/comment stores are plain process-global dicts with no locking — state is not shared or synchronized across multiple workers, processes, or replicas.
+- **No authentication, no database, no deployment/production configuration.** This is a learning project; none of those concerns are implemented, and nothing in this repo should be treated as production-ready.
+
+## 10. Technical notes / decisions
+
+No `docs/decisions/` directory exists in this repo. [VERIFY: confirm whether one is expected for this module.] The closest existing technical note is the mid-course decision record:
+
+- [`docs/midcourse/mini-adr.md`](docs/midcourse/mini-adr.md) — decision note on the due-date/overdue feature and task comments, including alternatives considered and rejected.
+
+Related docs under `docs/midcourse/`: `user-stories.md`, `prompt-log.md`, `reflection.md`, `verification.md`.
