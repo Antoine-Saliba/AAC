@@ -24,6 +24,23 @@ class TaskBase(BaseModel):
     @field_validator("due_date", mode="before")
     @classmethod
     def validate_due_date(cls, value: Optional[object]) -> Optional[datetime]:
+        """Parse and normalize `due_date` before Pydantic's type validation.
+
+        Accepts `None`, a `datetime`, or an ISO 8601 string (a trailing `Z`
+        is treated as `+00:00`). Naive datetimes/strings are assumed to be
+        UTC; timezone-aware ones are converted to UTC.
+
+        Args:
+            value: The raw input for `due_date`.
+
+        Returns:
+            Optional[datetime]: `None`, or a UTC-aware `datetime`.
+
+        Raises:
+            ValueError: If `value` is an empty/blank string, a string that
+                cannot be parsed as ISO 8601, or a type other than `None`,
+                `datetime`, or `str`.
+        """
         if value is None:
             return None
 
@@ -51,6 +68,14 @@ class TaskBase(BaseModel):
 
     @field_serializer("due_date", when_used="json")
     def serialize_due_date(self, value: Optional[datetime]) -> Optional[str]:
+        """Serialize `due_date` to an ISO 8601 string for JSON output.
+
+        Args:
+            value: The stored `due_date`.
+
+        Returns:
+            Optional[str]: `None`, or `value.isoformat()`.
+        """
         if value is None:
             return None
         return value.isoformat()
@@ -66,6 +91,18 @@ class TaskCreate(TaskBase):
     @field_validator("title")
     @classmethod
     def validate_title(cls, value: str) -> str:
+        """Strip and validate the task title.
+
+        Args:
+            value: The raw title.
+
+        Returns:
+            str: The stripped title.
+
+        Raises:
+            ValueError: If the stripped title is blank or exceeds 200
+                characters.
+        """
         stripped = value.strip()
         if not stripped:
             raise ValueError("title must not be blank")
@@ -85,6 +122,20 @@ class TaskUpdate(TaskBase):
     @field_validator("title")
     @classmethod
     def validate_title(cls, value: Optional[str]) -> Optional[str]:
+        """Strip and validate the task title, if provided.
+
+        Args:
+            value: The raw title, or None if `title` was omitted from the
+                update payload.
+
+        Returns:
+            Optional[str]: None if `value` is None; otherwise the stripped
+            title.
+
+        Raises:
+            ValueError: If `value` is provided but the stripped title is
+                blank or exceeds 200 characters.
+        """
         if value is None:
             return value
         stripped = value.strip()
@@ -108,6 +159,15 @@ class TaskResponse(TaskBase):
     @computed_field(return_type=bool)
     @property
     def overdue(self) -> bool:
+        """Whether this task is currently overdue.
+
+        Computed at read time (not stored) via `is_task_overdue()`, so it
+        can never go stale relative to `due_date`/`status`.
+
+        Returns:
+            bool: True if `due_date` is set, is in the past relative to the
+            current UTC time, and `status` is not Done.
+        """
         return is_task_overdue(self)
 
 class Comment(BaseModel):
@@ -120,6 +180,14 @@ class Comment(BaseModel):
 
     @field_serializer("created_at", when_used="json")
     def serialize_created_at(self, value: datetime) -> str:
+        """Serialize `created_at` to an ISO 8601 string for JSON output.
+
+        Args:
+            value: The stored `created_at` timestamp.
+
+        Returns:
+            str: `value.isoformat()`.
+        """
         return value.isoformat()
 
 
@@ -131,6 +199,18 @@ class CommentCreate(BaseModel):
     @field_validator("text")
     @classmethod
     def validate_text(cls, value: str) -> str:
+        """Strip and validate comment text.
+
+        Args:
+            value: The raw comment text.
+
+        Returns:
+            str: The stripped text.
+
+        Raises:
+            ValueError: If the stripped text is blank or exceeds 2000
+                characters.
+        """
         stripped = value.strip()
         if not stripped:
             raise ValueError("text must not be blank")
@@ -141,6 +221,26 @@ class CommentCreate(BaseModel):
 
 
 def is_task_overdue(task: TaskResponse | TaskCreate | TaskUpdate, now: Optional[datetime] = None) -> bool:
+    """Compute whether a task counts as overdue.
+
+    Single source of truth for overdue semantics, used by both
+    `TaskResponse.overdue` and the `?overdue=` filter in
+    `storage.get_all_tasks()`.
+
+    Args:
+        task: A task-like object read for its `due_date` and `status`
+            attributes. [VERIFY] The type hint includes `TaskCreate` and
+            `TaskUpdate`, but in this codebase the function is only called
+            with `TaskResponse` instances; `TaskUpdate.status` can be
+            `None` (unset), in which case the `status == TaskStatus.DONE`
+            check below is simply False rather than raising.
+        now: Reference time to compare `due_date` against. Falls back to
+            the current UTC time if not given (or falsy).
+
+    Returns:
+        bool: False if `due_date` is None or `status` is Done; otherwise
+        True if `due_date` is earlier than the reference time.
+    """
     if getattr(task, "due_date", None) is None:
         return False
     if getattr(task, "status", None) == TaskStatus.DONE:
@@ -150,4 +250,4 @@ def is_task_overdue(task: TaskResponse | TaskCreate | TaskUpdate, now: Optional[
     return task.due_date < reference_time
 def _reset() -> None:
     _tasks.clear()
-    _comments.clear()
+    _comments.clear()
