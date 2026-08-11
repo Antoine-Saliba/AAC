@@ -395,3 +395,6 @@ def test_delete_comment_via_wrong_task_returns_404(client, created_task):
     response = client.delete(f"/tasks/{other_id}/comments/{comment_id}")
     assert response.status_code == 404
     assert response.json()["detail"] == f"Comment with id {comment_id} not found"
+
+    def test_ci_canary_intentionally_fails():
+    assert False, "canary — CI should catch this"
