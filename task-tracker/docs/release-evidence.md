@@ -5,13 +5,13 @@
 - Date: 2026-08-12
 - Local app run command: `python -m app.main` (run from `task-tracker/backend`, venv active)
 - /health result: `curl -s -w "\nHTTP_STATUS:%{http_code}\n" http://127.0.0.1:8000/health` → `{"status":"ok","timestamp":"2026-08-12T07:41:46.469403+00:00"}` / HTTP_STATUS:200
-- Frontend check: TODO-USER
+- Frontend check:Opened http://127.0.0.1:8000/ in Edge; the Kanban board renders with To Do / In Progress / Done columns and per-column counts. Created a task via New Task and it appeared in In Progress with its priority badge; opened Edit, changed the title, saved, and the change persisted after a page refresh.
 - Test command: `pytest -v`
 - Test result: 42 passed, 2 warnings in 1.25s
 
 ## CI evidence
 - Workflow file: `.github/workflows/ci.yml` (ALREADY SATISFIED — triggers on push and pull_request, pins Python 3.11, installs from `task-tracker/backend/requirements.txt`, runs `pytest -v`; no changes made)
-- Latest run link or note: NOT RUN YET
+- Latest run link or note: https://github.com/Antoine-Saliba/AAC/actions/runs/31580989916
 - Test command used by CI: `pytest -v`
 - Shortcut check:
   - `continue-on-error`: absent

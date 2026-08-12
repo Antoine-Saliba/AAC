@@ -239,4 +239,4 @@ curl http://127.0.0.1:8000/health
 ### AI assistance summary
 AI helped draft or review: the CI workflow audit, the Dockerfile/.dockerignore safety review, README claim verification, and docs/release-evidence.md.
 I verified the work by: actually running the app (`python -m app.main`) and curling `/health`, running the full pytest suite, and building and running the Docker image and curling its `/health` endpoint — not by trusting the docs or AI output at face value.
-One AI suggestion I rejected or corrected: TODO-USER
+One AI suggestion I rejected or corrected:  The silent no-op fix option AI offered it as one of two ways to fix the null-status bug I rejected it because swallowing the client's explicit null silently is "the same class of problem" as the bug itself, just quieter.
