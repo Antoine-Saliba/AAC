@@ -4,7 +4,7 @@
 
 Task Tracker is a learning-project REST API with a static Kanban frontend.
 
-- Backend: Python, FastAPI, and Pydantic.
+- Backend: Python 3.10+ (CI tests Python 3.11 — see `.github/workflows/ci.yml`), FastAPI 0.139.2, Pydantic 2.13.4, Uvicorn 0.51.0, python-dotenv 1.2.2, tested with pytest 9.1.1 (exact pins: `backend/requirements.txt`).
 - Frontend: one static HTML/CSS/JavaScript file; no frontend build system is visible.
 - Storage: process-local in-memory dictionaries. Tasks and comments are lost when the server restarts.
 - The backend serves the frontend from `GET /`; the frontend calls `http://127.0.0.1:8000`.
@@ -17,7 +17,9 @@ This repository is being used for AI-Assisted Coding Module 5: grading and gover
 
 - Work read-only by default.
 - Prefer documentation work first. Edit only `docs/` unless the user explicitly authorizes another path.
-- Do not modify `backend/app/` unless the user explicitly approves one specific minimal fix.
+- No new product features (no auth, no database, no notifications, no unrelated UI changes).
+- `backend/app/` and `frontend/` are both protected. Do not modify either unless the user explicitly approves one specific minimal fix. Any accepted change to either must be documented in `docs/final-ai-review.md`.
+- If `backend/app/` or `frontend/` appear to have changed unexpectedly (not from an approved edit in the current task), stop and flag it to the user with the specific diff before doing anything else — do not proceed as if it were expected.
 - Keep one bounded task per Codex task/thread. Do not combine unrelated review, implementation, and documentation work.
 - Before making a repository claim, inspect and cite the relevant file(s). If a fact is not visible, write **not confirmed** rather than inferring it.
 - When an edit is requested, describe the target, scope, and verification before editing. Preserve unrelated user changes.
@@ -93,7 +95,7 @@ Sources: `backend/app/models.py`, `backend/app/main.py`, `backend/app/storage.py
 
 ## Security and governance
 
-- Never paste, log, commit, or expose secrets, credentials, tokens, or local `.env` contents. Use `.env.example` only as a non-secret reference.
+- Never paste, log, commit, or expose secrets, credentials, tokens, local `.env` contents, production logs, or personal data. Use `.env.example` only as a non-secret reference.
 - Do not run destructive commands or overwrite/delete files unless the user explicitly authorizes the precise target and scope.
 - Use read-only inspection before proposing changes. Cite the file(s) inspected for all repository findings.
 - Do not claim that tests, CI, security controls, deployment behavior, or requirements exist unless visible in inspected repository files.

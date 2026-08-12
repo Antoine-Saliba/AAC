@@ -92,7 +92,7 @@ Expected response, HTTP 200:
 
 **Frontend**: with the backend running, either open http://127.0.0.1:8000/ (served directly by the backend) or open `task-tracker/frontend/index.html` in a browser directly. The page talks to the backend at `http://127.0.0.1:8000`, so the backend must already be running.
 
-[VERIFY] `python -m app.main` (run from the same directory) is an alternative entry point already present in `app/main.py` — it reads `APP_ENV`/`PORT` from `.env` and also starts uvicorn with reload. Both commands behave the same by default since `.env.example` sets `PORT=8000`.
+`python -m app.main` (run from the same directory) is an alternative entry point already present in `app/main.py` — it reads `APP_ENV`/`PORT` from `.env` and also starts uvicorn with reload. Both commands behave the same by default since `.env.example` sets `PORT=8000`.
 
 ## 5. Run tests
 
@@ -130,7 +130,7 @@ Notes on the image (from `task-tracker/Dockerfile`):
 
 - Multi-stage build: dependencies are installed in a `builder` stage, then only the installed packages, `backend/app`, and `frontend` are copied into the `runtime` stage — no `requirements.txt`, tests, docs, or `.env` end up in the final image.
 - Runs as a non-root user (`app`, uid 1000).
-- The container's `CMD` starts uvicorn directly on `0.0.0.0:8000` with no `--reload`; it does **not** go through `app.main`'s `__main__` block, so [VERIFY] the `PORT` value from `.env` has no effect inside the container — `.env` isn't copied into the image at all, and the port is hardcoded to `8000` in the Dockerfile.
+- The container's `CMD` starts uvicorn directly on `0.0.0.0:8000` with no `--reload`; it does **not** go through `app.main`'s `__main__` block, so the `PORT` value from `.env` has no effect inside the container — `.env` isn't copied into the image at all, and the port is hardcoded to `8000` in the Dockerfile.
 
 ## 7. CI workflow summary
 
@@ -194,4 +194,49 @@ No `docs/decisions/` directory exists in this repo. [VERIFY: confirm whether one
 
 - [`docs/midcourse/mini-adr.md`](docs/midcourse/mini-adr.md) — decision note on the due-date/overdue feature and task comments, including alternatives considered and rejected.
 
-Related docs under `docs/midcourse/`: `user-stories.md`, `prompt-log.md`, `reflection.md`, `verification.md`.
+Related docs under `docs/midcourse/`: `user-stories.md`, `prompt-log.md`, `reflection.md`, `verification.md`.
+
+## Final Project
+
+Branch reviewed: final-project
+
+### What this submission demonstrates
+- Existing Task Tracker app still runs inside the intended course scope.
+- CI runs the pytest suite on push and/or pull request.
+- Docker image builds and runs with /health returning 200.
+- AI review, security, and ownership evidence is in docs/.
+
+### How to run locally
+
+```bash
+cd task-tracker/backend
+python -m venv venv
+venv\Scripts\Activate.ps1      # Windows PowerShell; `source venv/bin/activate` on macOS/Linux
+pip install -r requirements.txt
+copy .env.example .env         # `cp` on macOS/Linux
+python -m app.main
+```
+
+### How to run tests
+
+```bash
+pytest -v
+```
+
+### How to run with Docker
+
+```bash
+docker build -t task-tracker-api .
+docker run --rm -p 8000:8000 task-tracker-api
+curl http://127.0.0.1:8000/health
+```
+
+### Evidence files
+- docs/release-evidence.md
+- docs/final-ai-review.md
+- docs/ai-playbook.md
+
+### AI assistance summary
+AI helped draft or review: the CI workflow audit, the Dockerfile/.dockerignore safety review, README claim verification, and docs/release-evidence.md.
+I verified the work by: actually running the app (`python -m app.main`) and curling `/health`, running the full pytest suite, and building and running the Docker image and curling its `/health` endpoint — not by trusting the docs or AI output at face value.
+One AI suggestion I rejected or corrected: TODO-USER

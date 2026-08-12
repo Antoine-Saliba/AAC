@@ -160,7 +160,12 @@ def update_task(task_id: str, payload: TaskUpdate) -> TaskResponse:
         HTTPException: 422 if `payload.status` is set and the transition
             from the task's current status is not in the allowed set.
     """
-    if payload.status is not None:
+    if "status" in payload.model_fields_set:
+        if payload.status is None:
+            raise HTTPException(
+                status_code=422,
+                detail="status cannot be explicitly set to null",
+            )
         existing = _require_task(task_id)
         validate_status_transition(existing.status, payload.status)
 
